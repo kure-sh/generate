@@ -184,7 +184,10 @@ class Imports implements Generator {
 
     if (src[0] === "local") {
       const dest = `/src/${src[1]}`;
-      return `${relative(local, dirname(dest)) || "."}/${basename(dest)}`;
+      let dir = relative(local, dirname(dest)) || ".";
+      if (!dir.startsWith(".")) dir = `./${dir}`;
+
+      return `${dir}/${basename(dest)}`;
     } else {
       let [type, pkg, path] = src;
 
