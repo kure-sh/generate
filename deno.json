@@ -1,0 +1,14 @@
+{
+  "name": "@kure/generate",
+  "version": "0.1.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./main": "./main.ts"
+  },
+  "imports": {
+    "@kure/schema": "jsr:@kure/schema@^0.1.0",
+    "@kure/spec": "jsr:@kure/spec@^0.1.1",
+    "@std/cli": "jsr:@std/cli@^0.224.6",
+    "@std/path": "jsr:@std/path@^0.225.2"
+  }
+}

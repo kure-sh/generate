@@ -15,11 +15,19 @@ import type {
   TypeReference,
   UnionType,
   UnknownType,
-} from "https://kure.sh/lib/spec@0.1/mod.ts";
+} from "@kure/spec";
 
-import { Context, type Engine, type ImportSource, Module } from "./syntax.ts";
+import {
+  Context,
+  type Packaging,
+  type ImportSource,
+  Module,
+} from "./syntax.ts";
 
-export function emitVersion(schema: APIGroupVersion, engine: Engine): string {
+export function generateVersion(
+  schema: APIGroupVersion,
+  engine: Packaging
+): string {
   const { group, version, definitions } = schema;
 
   const module = new Module(
@@ -32,7 +40,14 @@ export function emitVersion(schema: APIGroupVersion, engine: Engine): string {
   if (resource != null) module.add(resource);
 
   for (const definition of definitions) {
-    module.add(gen.definition(definition));
+    try {
+      module.add(gen.definition(definition));
+    } catch (err) {
+      console.error(
+        `Error generating ${schema.group.name}/${schema.version} ${definition.name}`
+      );
+      throw err;
+    }
   }
 
   return module.render(new Context(schema, module, engine));
@@ -259,7 +274,14 @@ const gen = {
 
     return (module) => {
       const value = valueType(module);
-      return (ctx) => `${doc(property, 1)}  ${name}${optional}: ${value(ctx)};`;
+      return (ctx) => {
+        try {
+          return `${doc(property, 1)}  ${name}${optional}: ${value(ctx)};`;
+        } catch (err) {
+          console.error(`Error rendering property ${property.name}`);
+          throw err;
+        }
+      };
     };
   },
 

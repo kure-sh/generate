@@ -1,14 +1,10 @@
-import {
-  basename,
-  dirname,
-  relative,
-} from "https://deno.land/std@0.224.0/path/posix/mod.ts";
+import { basename, dirname, relative } from "@std/path/posix";
 
 import type {
   APIDependency,
   APIGroupIdentifier,
   APIGroupVersion,
-} from "https://kure.sh/lib/spec@0.1/mod.ts";
+} from "@kure/spec";
 
 export interface Generator {
   apply(module: Module): void;
@@ -20,18 +16,18 @@ export class Context {
   public readonly version: string;
   public readonly dependencies: Map<string, APIDependency>;
   public readonly module: Module;
-  public readonly engine: Engine;
+  public readonly packaging: Packaging;
 
   constructor(
     { group, version, dependencies }: APIGroupVersion,
     module: Module,
-    engine: Engine
+    packaging: Packaging
   ) {
     this.group = group;
     this.version = version;
     this.dependencies = new Map(dependencies.map((dep) => [dep.package, dep]));
     this.module = module;
-    this.engine = engine;
+    this.packaging = packaging;
   }
 
   get apiVersion(): string {
@@ -89,7 +85,7 @@ export class Module implements Pick<Generator, "render"> {
   }
 }
 
-export type Engine = "deno" | "node";
+export type Packaging = "kure.sh" | "jsr" | "npm";
 
 export type ModuleURN = `kure:${"api" | "lib"}:${string}` | `/${string}`;
 
@@ -178,7 +174,7 @@ class Imports implements Generator {
 
   private path(
     src: ImportSource,
-    { module, engine, dependencies }: Context
+    { module, packaging, dependencies }: Context
   ): string {
     const local = `/src/${dirname(module.path)}`;
 
@@ -191,17 +187,22 @@ class Imports implements Generator {
     } else {
       let [type, pkg, path] = src;
 
-      if (engine === "deno") {
+      if (packaging === "jsr") {
+        pkg = pkg.replaceAll("/", "-");
+        const name =
+          type === "api" ? (pkg === "kubernetes" ? "api" : `api-${pkg}`) : pkg;
+        return `@kure/${name}` + (path ? `/${path}` : "");
+      } else if (packaging === "npm") {
+        return (
+          `@kure-${type}/${pkg.replaceAll("/", "-")}` + (path ? `/${path}` : "")
+        );
+      } else if (packaging === "kure.sh") {
         const version = type === "api" ? dependencies.get(pkg)?.version : "0.1";
         if (pkg === "kubernetes" && version) pkg = "";
 
         const target = `${pkg}${version ? `@${version}` : ""}`;
 
         return `https://kure.sh/${type}/${target}/${path || "mod.ts"}`;
-      } else if (engine === "node") {
-        return (
-          `@kure-${type}/${pkg.replaceAll("/", "-")}` + (path ? `/${path}` : "")
-        );
       }
     }
 
@@ -285,7 +286,7 @@ class Names {
     const names = this.bound.get(token);
     const name = names?.find((name) => name.usage === "declaration");
 
-    if (name == null) throw new Error(`name ${name} not declared in module`);
+    if (name == null) throw new Error(`name ${token} not declared in module`);
 
     return name;
   }
